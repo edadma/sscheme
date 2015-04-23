@@ -18,7 +18,7 @@ package object sscheme
 				
 			this
 		}
-				
+
 		def find( variable: Symbol ): Option[Holder] =
 			get( variable ) match
 			{

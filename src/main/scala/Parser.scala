@@ -45,6 +45,12 @@ object Parser
 			add( EOFLexeme )
 		}
 
+	val brackets = Map[Any, Any]( '(' -> ')', '[' -> ']', '{' -> '}' )
+	
+	def open( c: Any ) = brackets contains c
+	
+	def close( c: Any ) = brackets.values exists (_ == c)
+	
 	def scan( r: Reader ) = lexer.scan( r, 4 )
 
 	def scan( s: String ): Stream[Token] = scan( new StringReader(s) )
@@ -75,7 +81,7 @@ object Parser
 	def parse( s: String ): List[List[Any]] = parse( scan(s) )
 	
 	def parseExpression( s: Stream[Token] ): (Any, Stream[Token]) =
-		if (s.head.kind == '(' || s.head.kind == '[' || s.head.kind == '\'')
+		if (open( s.head.kind ) || s.head.kind == '\'')
 			parseList( s )
 		else
 			((s.head.kind match
@@ -87,24 +93,26 @@ object Parser
 			}), s.tail)
 	
 	def parseList( t: Stream[Token] ): (List[Any], Stream[Token]) =
-		if (t.head.kind == '(' || t.head.kind == '[')
+		if (open( t.head.kind ))
 		{
 		val buf = new ListBuffer[Any]
 		
-			def build( s: Stream[Token] ): (List[Any], Stream[Token]) =
+			def build( s: Stream[Token], closing: Any ): (List[Any], Stream[Token]) =
 				if (s.head.end)
 					s.head.pos.error( "unclosed list" )
-				else if (s.head.kind == ')' || s.head.kind == ']')
+				else if (s.head.kind == closing)
 					(buf.toList, s.tail)
+				else if (close( s.head.kind ))
+					s.head.pos.error( "wrong closing delimiter" )
 				else
 				{
 				val (expr, rest) = parseExpression( s )
 				
 					buf += expr
-					build( rest )
+					build( rest, closing )
 				}
 				
-			build( t.tail )
+			build( t.tail, brackets(t.head.kind) )
 		}
 		else if (t.head.kind == '\'')
 		{
@@ -113,5 +121,5 @@ object Parser
 			(List('quote, expr), rest)
 		}
 		else
-			t.head.pos.error( """expected "(" or "[" or "'"""" )
+			t.head.pos.error( """expected "(" or "[" or "{" or "'"""" )
 }

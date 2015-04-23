@@ -186,11 +186,26 @@ package object sscheme
 									eval( alternative )
 							case a => sys.error( "invalid arguments for 'if': " + a )							
 						}
+				},
+			'or ->
+				new Form
+				{
+					def apply( args: List[Any] )( implicit env: Environment ) = args exists beval
+				},
+			'and ->
+				new Form
+				{
+					def apply( args: List[Any] )( implicit env: Environment ) = args forall beval
 				}
+
 		)
 
 	interpret( """
 		(define null? (lambda (x) (eq? x '())))
+		
+		(define boolean? (lambda (x) (or (eq? x #t) (eq? x #f))))
+		
+		(define not (lambda (x) (if x #f #t)))
 		""" )
 	
 	def interpret( program: List[Any] )( implicit env: Environment = GLOBAL ): Any =

@@ -16,5 +16,7 @@ class Tests extends FreeSpec with PropertyChecks with Matchers
 		interpret( """ [define f [lambda [x y] [+ [* x x] [* y y]]]] [define a 5] [f a 4] """ ) shouldBe 41
  		interpret( """ [define x 5] [set! x 6] [+ x 1] """ ) shouldBe 7
 		a [RuntimeException] should be thrownBy {interpret( """ (= 1 1] """ )}
+		interpret( """ [if #f "yes" "no"] """ ) shouldBe "no"
+		interpret( """ [if #t "yes" "no"] """ ) shouldBe "yes"
 	}
 }

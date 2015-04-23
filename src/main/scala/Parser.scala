@@ -19,17 +19,24 @@ object Parser
 			else
 				None
 	}
-
-// 	class SchemeSpecialLexeme( toks: (Any, String)* ) extends Lexeme
-// 	{
-// 		private val atomchar = ('0' to '9').toSet ++ ('a' to 'z') ++ ('A' to 'Z') ++ "?!.+-*/<=>:$%^&_~@"
-// 		
-// 		def token( s: Stream[Chr] ) =
-// 			if (s.head.ch != '@' && atomchar(s.head.ch))
-// 				Some( consume(tok, s, c => atomchar(c)) )
-// 			else
-// 				None
-// 	}
+	
+	class SchemeSpecialLexeme( keyword: String, tok: Any ) extends Lexeme
+	{
+		private val delims = "()[]{} \t\r\n;"toSet
+		
+		def token( s: Stream[Chr] ) =
+		{
+			consume( s, keyword ) match
+			{
+				case Some( rest ) =>
+					if (rest.head.end || delims.contains( rest.head.ch ))
+						Some( (rest, Token(tok, keyword, s, rest)) )
+					else
+						None
+				case None => None
+			}
+		}
+	}
 
 	val lexer =
 		new Lexer
@@ -40,7 +47,9 @@ object Parser
 			ignore( new LineCommentLexeme(";") )
 			ignore( new BlockCommentLexeme("/*", "*/") )
 			add( new SchemeAtomLexeme('atom) )
-			add( new SymbolLexeme( 'atom ) {add( "(", ")", "[", "]", "'", "#(" )} )
+			add( new SchemeSpecialLexeme("#f", 'false) )
+			add( new SchemeSpecialLexeme("#t", 'true) )
+			add( new SymbolLexeme( 'atom ) {add( "{", "}", "(", ")", "[", "]", "'", "#(" )} )
 			ignore( WhitespaceLexeme )
 			add( EOFLexeme )
 		}
@@ -89,6 +98,8 @@ object Parser
 				case 'atom => Symbol( s.head.s )
 				case 'integer => s.head.s.toInt
 				case 'float => s.head.s.toDouble
+				case 'false => false
+				case 'true => true
 				case 'string => s.head.s
 			}), s.tail)
 	

@@ -207,7 +207,7 @@ package object sscheme
 	def eval( expr: Any )( implicit env: Environment ): Any =
 		expr match
 		{
-			case _: Int | _: Double | _: String | Nil => expr
+			case _: Int | _: Double | _: String | false | true | Nil => expr
 			case s: Symbol => env.find( s ).getOrElse( sys.error("unbound symbol: " + s.name) ).obj
 			case head :: tail =>
 				eval( head ) match

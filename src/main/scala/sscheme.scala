@@ -189,6 +189,10 @@ package object sscheme
 				}
 		)
 
+	interpret( """
+		(define null? (lambda (x) (eq? x '())))
+		""" )
+	
 	def interpret( program: List[Any] )( implicit env: Environment = GLOBAL ): Any =
 		if (program != Nil)
 		{

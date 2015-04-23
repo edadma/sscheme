@@ -84,12 +84,12 @@ pomIncludeRepository := { _ => false }
 
 licenses := Seq("MIT" -> url("http://opensource.org/licenses/MIT"))
 
-homepage := Some(url("https://github.com/edadma/color"))
+homepage := Some(url("https://github.com/edadma/sscheme"))
 
 pomExtra := (
   <scm>
-    <url>git@github.com:edadma/color.git</url>
-    <connection>scm:git:git@github.com:edadma/color.git</connection>
+    <url>git@github.com:edadma/sscheme.git</url>
+    <connection>scm:git:git@github.com:edadma/sscheme.git</connection>
   </scm>
   <developers>
     <developer>

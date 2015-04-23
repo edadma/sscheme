@@ -1,22 +1,46 @@
 package ca.hyperreal
 
-import collection.mutable.ListBuffer
+import collection.mutable.{HashMap, ListBuffer}
 
 import ca.hyperreal.lia.Math
 
 
 package object sscheme
 {
-	type Environment = Map[Symbol, Any]
+	type SchemePair = (Any, Any)
+	
+	private [sscheme] class Environment( outer: Environment ) extends HashMap[Symbol, Holder]
+	{
+		def add( kvs: (Symbol, Any)* ): Environment =
+		{
+			for ((k, v) <- kvs)
+				put( k, new Holder(v) )
+				
+			this
+		}
+				
+		def find( variable: Symbol ): Option[Holder] =
+			get( variable ) match
+			{
+				case None =>
+					if (outer eq null)
+						None
+					else
+						outer find variable
+				case sh => sh
+			}
+	}
+	
+	private [sscheme] class Holder( var obj: Any )
 	
 	abstract class Form
 	{
-		def apply( args: List[Any] )( implicit env: Environment ): (Any, Environment)
+		def apply( args: List[Any] )( implicit env: Environment ): Any
 	}
 	
 	class Procedure( procedure: List[Any] => Any ) extends Form
 	{
-		def apply( args: List[Any] )( implicit env: Environment ) = (procedure( args map (aeval) ), env)
+		def apply( args: List[Any] )( implicit env: Environment ) = procedure( args map (eval) )
 	}
 	
 	class Primitive( primitive: String )( procedure: PartialFunction[List[Any], Any] ) extends Procedure( procedure )
@@ -25,12 +49,12 @@ package object sscheme
 			if (procedure.isDefinedAt( args ))
 				super.apply( args )
 			else
-				error( s"invalid arguments for '$primitive': $args" )
+				sys.error( s"invalid arguments for '$primitive': $args" )
 	}
 	
 	class Syntax( form: List[Any] => Any ) extends Form
 	{
-		def apply( args: List[Any] )( implicit env: Environment ) = (form( args ), env)
+		def apply( args: List[Any] )( implicit env: Environment ) = form( args )
 	}
 	
 	class Lambda( formals: Either[List[Symbol], Symbol], body: List[Any], env: Environment ) extends
@@ -43,25 +67,25 @@ package object sscheme
 						val pl = f.length
 					
 						if (al < pl)
-							error( "too few arguments for lambda: " + args )
+							sys.error( s"too few arguments for lambda: $args" )
 						else if (al > pl)
-							error( "too many arguments for lambda: " + args )
+							sys.error( s"too many arguments for lambda: $args" )
 						else
-							interpret( body )( env ++ (f zip args) )
+							interpret( body )( new Environment(env) add (f.zip(args): _*) )
 					case Right( f ) =>
-						interpret( body )( env + (f -> args) )
+						interpret( body )( new Environment(env) add (f -> args) )
 				}
 			}
 		)
 	
 	private val GLOBAL =
-		Map[Symbol, Any](
+		new Environment( null ).add(
 			'quote -> new Syntax(
 				list =>
 					if (list.length == 1)
 						list.head
 					else
-						error( "wrong number of arguments for 'quote': " + list )
+						sys.error( "wrong number of arguments for 'quote': " + list )
 				),
 			'+ -> new Primitive( "+" )(
 				{
@@ -84,13 +108,32 @@ package object sscheme
 			'car -> new Primitive( "car" )( {case List(list: List[Any]) => list.head} ),
 			'cdr -> new Primitive( "car" )( {case List(list: List[Any]) => list.tail} ),
 			'cons -> new Primitive( "cons" )( {case List(first, second: List[Any]) => first :: second} ),
+			'display -> new Primitive( "display" )( {case List(obj) => println(obj)} ),
 			'define ->
 				new Form
 				{
 					def apply( args: List[Any] )( implicit env: Environment ) =
 						args match
 						{
-							case List( sym: Symbol, exp ) => (Nil, env + (sym -> aeval(exp)))
+							case List( sym: Symbol, exp ) =>
+								env += (sym -> new Holder(eval(exp)))
+								Nil
+						}
+				},
+			Symbol("set!") ->
+				new Form
+				{
+					def apply( args: List[Any] )( implicit env: Environment ) =
+						args match
+						{
+							case List( sym: Symbol, exp ) =>
+								env.find( sym ) match
+								{
+									case None => sys.error( s"variable ${sym.name} was not previously bound: (set! ${sym.name} $exp)" )
+									case Some( h: Holder ) => h.obj = eval( exp )
+								}
+								
+								Nil
 						}
 				},
 			'apply ->
@@ -108,10 +151,10 @@ package object sscheme
 										buf ++= rest.init
 										buf ++= l
 										function( buf.toList )
-									case a => error( "expected list as last argument of 'apply': " + a )
+									case a => sys.error( "expected list as last argument of 'apply': " + a )
 								}
 							case List(function: Form, list: List[Any]) => function( list )
-							case _ => error( "invalid arguments for 'apply': " + args )
+							case _ => sys.error( "invalid arguments for 'apply': " + args )
 						}
 				},
 			'lambda ->
@@ -120,9 +163,9 @@ package object sscheme
 					def apply( args: List[Any] )( implicit env: Environment ) =
 						args match
 						{
-							case (formals: List[Symbol]) :: body => (new Lambda( Left(formals), body, env ), env)
-							case (formals: Symbol) :: body => (new Lambda( Right(formals), body, env ), env)
-							case _ => error( "invalid arguments for 'lambda': " + args )
+							case (formals: List[Symbol]) :: body => new Lambda( Left(formals), body, env )
+							case (formals: Symbol) :: body => new Lambda( Right(formals), body, env )
+							case _ => sys.error( "invalid arguments for 'lambda': " + args )
 						}
 				},
 			'if ->
@@ -141,7 +184,7 @@ package object sscheme
 									eval( consequent )
 								else
 									eval( alternative )
-							case a => error( "invalid arguments for 'if': " + a )							
+							case a => sys.error( "invalid arguments for 'if': " + a )							
 						}
 				}
 		)
@@ -149,37 +192,50 @@ package object sscheme
 	def interpret( program: List[Any] )( implicit env: Environment = GLOBAL ): Any =
 		if (program != Nil)
 		{
-		val (result, newenv) = eval( program.head )
+		val result = eval( program.head )
 		
 			if (program.tail == Nil)
 				result
 			else
-				interpret( program.tail )( newenv )
+				interpret( program.tail )
 		}
 		else
 			Nil
 
 	def interpret( program: String ): Any = interpret( Parser.parse(program) )
 	
-	def eval( expr: Any )( implicit env: Environment ): (Any, Environment) =
+	def eval( expr: Any )( implicit env: Environment ): Any =
 		expr match
 		{
-			case _: Int | _: Double | _: String | Nil => (expr, env)
-			case s: Symbol => (env.getOrElse( s, error("unbound symbol: " + s.name) ), env)
+			case _: Int | _: Double | _: String | Nil => expr
+			case s: Symbol => env.find( s ).getOrElse( sys.error("unbound symbol: " + s.name) ).obj
 			case head :: tail =>
-				aeval( head ) match
+				eval( head ) match
 				{
 					case f: Form => f( tail )
-					case h => error( "head of list not applicable: " + h )
+					case h => sys.error( "head of list not applicable: " + h )
 				}
 		}
 	
 	def beval( expr: Any )( implicit env: Environment ): Boolean =
-		aeval( expr ) match
+		eval( expr ) match
 		{
 			case b: Boolean => b
-			case a => error( "expected boolean: " + a )
+			case a => sys.error( "expected boolean: " + a )
 		}
 	
-	def aeval( expr: Any )( implicit env: Environment ) = eval( expr )._1
+	def properList( pair: SchemePair ): Boolean =
+		pair match
+		{
+			case (_, Nil) => true
+			case (_, tail: SchemePair) => properList( tail )
+			case _ => false
+		}
+	
+	def toScalaList( list: SchemePair ): (List[Any], Any) =
+	{
+	val buf = new ListBuffer[Any]
+	
+		(buf.toList, null)
+	}
 }

@@ -261,7 +261,8 @@ package object sscheme
 				}
 		).
 		add( NumericPrimitives ).
-		add( IOPrimitives )
+		add( IOPrimitives ).
+		add( TypePrimitives )
 	
 	interpret( """
 		(define null? (lambda (x) (eq? x '())))

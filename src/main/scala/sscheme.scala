@@ -304,6 +304,8 @@ package object sscheme
 			Nil
 
 	def interpret( program: String ): Any = interpret( program, standardEnvironment )
+
+	def interpret( program: String, vars: (Symbol, Any)* ): Any = interpret( program, standardEnvironment add (vars: _*) )
 	
 	def interpret( program: String, env: Environment ): Any = interpret( Parser.parse(program) )( env )
 

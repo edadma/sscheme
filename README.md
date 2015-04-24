@@ -33,17 +33,18 @@ The following is a simple example of how to use it in a Scala program. The Schem
 					(lambda (pred? l)
 						(if (null? l) l (dosort pred? l (length l))))))
 			""" )
+		val l = List( 5, 7, 3, 9, 2, 1, 6 )
 		
-		println( interpret(""" (sort < '(3 4 2 1 2 5)) """, env) )
-		println( interpret(""" (sort > '(3 4 2 1 2 5)) """, env) )
+		println( interpret( """ (sort < l) """, env add ('l -> l) ) )
+		println( interpret( """ (sort > l) """, env add ('l -> l) ) )
 	}
 
 The output is:
 
-	List(1, 2, 2, 3, 4, 5)
-	List(5, 4, 3, 2, 2, 1)
+	List(1, 2, 3, 5, 6, 7, 9)
+	List(9, 7, 6, 5, 3, 2, 1)
 
-
+	
 ## License
 
 SScheme is distributed under the MIT License, meaning that you are free to use it in your free or proprietary software.

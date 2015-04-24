@@ -15,10 +15,15 @@ class Tests extends FreeSpec with PropertyChecks with Matchers
 	
 	"primitives" in
 	{
+		interpret( """ (quotient 45 6) """ ) shouldBe 7
+		
 		interpret( """ [= 1 1] """ ) shouldBe true
 		interpret( """ [= 1 2] """ ) shouldBe false
 		interpret( """ [< 1 2] """ ) shouldBe true
-		
+
+		interpret( """ [integer? 1] """ ) shouldBe true
+		interpret( """ [integer? 2.1] """ ) shouldBe false
+
 		interpret( """ [sqrt 25] """ ) shouldBe 5
 		interpret( """ [sqrt 2] """ ) shouldBe (sqrt( 2 ))
 		
@@ -46,6 +51,20 @@ class Tests extends FreeSpec with PropertyChecks with Matchers
 			(let ((x 0) (y 1))
 				(let ((x y) (y x))
 					(list x y))) """ ) shouldBe List( 1, 0 )
+	}
+	
+	"conditional" in
+	{
+	val env = environment( """
+		[define test [lambda [x]
+			[cond
+				[[< x 5] "small"]
+				[[< x 10] "medium"]
+				[else "large"]]]] """ )
+				
+		interpret( """ [test 3] """, env ) shouldBe "small"
+		interpret( """ [test 6] """, env ) shouldBe "medium"
+		interpret( """ [test 15] """, env ) shouldBe "large"
 	}
 	
 	"pre-defined" in

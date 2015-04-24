@@ -106,7 +106,13 @@ package object sscheme
 				} ),
 			'- -> new Primitive( "-" )( {case List(first: Int, second: Int) => first - second} ),
 			'/ -> new Primitive( "/" )( {case List(first: Int, second: Int) => first / second} ),
+			'quotient -> new Primitive( "quotient" )( {case List(first: Int, second: Int) => Math( Symbol("\\"), first, second )} ),
 			'sqrt -> new Primitive( "sqrt" )( {case List(n) => ca.hyperreal.lia.Math.sqrtFunction( n )} ),
+			Symbol("integer?") -> new Primitive( "integer?" )(
+				{
+					case List(_: Int | _: BigInt) => true
+					case List( _ ) => false
+				} ),
 			'< -> new Primitive( "<" )( {	case List(first: Int, second: Int) => first < second} ),
 			'> -> new Primitive( ">" )( {	case List(first: Int, second: Int) => first > second} ),
 			'<= -> new Primitive( "<=" )( {	case List(first: Int, second: Int) => first <= second} ),
@@ -213,13 +219,51 @@ package object sscheme
 						{
 							case (bindings: List[Any]) :: body /*if properList( bindings )*/ =>
 								interpret( body )( new Environment(env) add ((bindings map ({case List(k: Symbol, v) => (k, eval(v))})): _*) )
+							case (name: Symbol) :: (bindings: List[Any]) :: body /*if properList( bindings )*/ =>
+								val newenv = new Environment( env )
+								val lambda = new Lambda( Left(bindings map ({case List(k: Symbol, _) => k})), body, newenv )
+		
+								newenv(name) = new Holder( lambda )
+								lambda( bindings map ({case List(_, v) => eval(v)}) )( newenv )
 							case a => sys.error( "invalid arguments for 'let': " + a )							
 						}
+				},
+			'cond ->
+				new Form
+				{
+					def apply( args: List[Any] )( implicit env: Environment ) =
+					{
+						def evaluate( clauses: List[Any] ): Any =
+							clauses.head match
+							{
+								case Nil => Nil
+								case List( test ) =>
+									eval( test ) match
+									{
+										case false => evaluate( clauses.tail )
+										case v => v
+									}
+								case test :: '=> :: exp =>
+									val res = eval( test )
+									
+										if (res != false)
+											eval( exp ).asInstanceOf[Procedure]( List(res) )
+										else
+											evaluate( clauses.tail )
+								case 'else :: body if clauses.tail.isEmpty => interpret( body )
+								case test :: body =>
+									if (beval( test ))
+										interpret( body )
+									else
+										evaluate( clauses.tail )
+								case a => sys.error( "invalid arguments for 'test': " + a )							
+							}
+							
+						evaluate( args )
+					}
 				}
-
 		)
 
-		
 	interpret( """
 		(define null? (lambda (x) (eq? x '())))
 		
@@ -228,6 +272,8 @@ package object sscheme
 		(define not (lambda (x) (if x #f #t)))
 		
 		(define list (lambda x x))
+		
+		(define abs (lambda (x) (if (< x 0) (- x) x)))
 		""" )
 	
 	def interpret( program: List[Any] )( implicit env: Environment = GLOBAL ): Any =
@@ -243,7 +289,17 @@ package object sscheme
 		else
 			Nil
 
-	def interpret( program: String ): Any = interpret( Parser.parse(program) )
+	def interpret( program: String ): Any = interpret( program, GLOBAL )
+	
+	def interpret( program: String, env: Environment ): Any = interpret( Parser.parse(program) )( env )
+
+	def environment( program: String ): Environment =
+	{
+	val env = new Environment( GLOBAL )
+	
+		interpret( program, env )
+		env
+	}
 	
 	def eval( expr: Any )( implicit env: Environment ): Any =
 		expr match
@@ -262,7 +318,7 @@ package object sscheme
 		eval( expr ) match
 		{
 			case b: Boolean => b
-			case a => sys.error( "expected boolean: " + a )
+			case _ => true
 		}
 	
 	def properList( pair: SchemePair ): Boolean =

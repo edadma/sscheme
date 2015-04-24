@@ -104,8 +104,16 @@ package object sscheme
 					case Nil => 1
 					case list: List[Number] => list.reduce( Math('*, _, _).asInstanceOf[Number] )
 				} ),
-			'- -> new Primitive( "-" )( {case List(first: Int, second: Int) => first - second} ),
-			'/ -> new Primitive( "/" )( {case List(first: Int, second: Int) => first / second} ),
+			'- -> new Primitive( "-" )(
+				{
+					case List( n ) => Math( '-, n )
+					case list: List[Number] => list.reduce( Math('-, _, _).asInstanceOf[Number] )
+				} ),
+			'/ -> new Primitive( "/" )(
+				{
+					case List( n ) => Math( '/, 1, n )
+					case list: List[Number] => list.reduce( Math('/, _, _).asInstanceOf[Number] )
+				} ),
 			'quotient -> new Primitive( "quotient" )( {case List(first: Int, second: Int) => Math( Symbol("\\"), first, second )} ),
 			'sqrt -> new Primitive( "sqrt" )( {case List(n) => ca.hyperreal.lia.Math.sqrtFunction( n )} ),
 			Symbol("integer?") -> new Primitive( "integer?" )(
@@ -264,6 +272,8 @@ package object sscheme
 				}
 		)
 
+	def standardEnvironment = new Environment( GLOBAL )
+	
 	interpret( """
 		(define null? (lambda (x) (eq? x '())))
 		
@@ -274,9 +284,16 @@ package object sscheme
 		(define list (lambda x x))
 		
 		(define abs (lambda (x) (if (< x 0) (- x) x)))
-		""" )
+		
+		(define length
+			(lambda (ls)
+				(let loop ((ls ls) (n 0))
+				(if (null? ls)
+					n
+					(loop (cdr ls) (+ n 1))))))
+		""", GLOBAL )
 	
-	def interpret( program: List[Any] )( implicit env: Environment = GLOBAL ): Any =
+	def interpret( program: List[Any] )( implicit env: Environment = standardEnvironment ): Any =
 		if (program != Nil)
 		{
 		val result = eval( program.head )
@@ -289,13 +306,13 @@ package object sscheme
 		else
 			Nil
 
-	def interpret( program: String ): Any = interpret( program, GLOBAL )
+	def interpret( program: String ): Any = interpret( program, standardEnvironment )
 	
 	def interpret( program: String, env: Environment ): Any = interpret( Parser.parse(program) )( env )
 
 	def environment( program: String ): Environment =
 	{
-	val env = new Environment( GLOBAL )
+	val env = new Environment( standardEnvironment )
 	
 		interpret( program, env )
 		env
@@ -310,7 +327,7 @@ package object sscheme
 				eval( head ) match
 				{
 					case f: Form => f( tail )
-					case h => sys.error( "head of list not applicable: " + h )
+					case h => sys.error( "head of list not applicable: " + (h :: tail) )
 				}
 		}
 	

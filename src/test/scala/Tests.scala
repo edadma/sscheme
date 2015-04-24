@@ -2,6 +2,8 @@ package ca.hyperreal.sscheme
 
 import math._
 
+import ca.hyperreal.lia._
+
 import org.scalatest._
 import prop.PropertyChecks
 
@@ -15,6 +17,16 @@ class Tests extends FreeSpec with PropertyChecks with Matchers
 	
 	"primitives" in
 	{
+		interpret( """ (cdr '(a)) """ ) shouldBe Nil
+		interpret( """ (cdr '(a b c)) """ ) shouldBe List( 'b, 'c )
+		interpret( """ (cdr (cons 3 '(4))) """ ) shouldBe List(4)
+		
+		interpret( """ [- 1] """ ) shouldBe -1
+		interpret( """ [- 10 1 1] """ ) shouldBe 8
+		
+		interpret( """ [/ 2] """ ) shouldBe Rational( 1, 2 )
+		interpret( """ [/ 12 2 2] """ ) shouldBe 3
+		
 		interpret( """ (quotient 45 6) """ ) shouldBe 7
 		
 		interpret( """ [= 1 1] """ ) shouldBe true
@@ -51,6 +63,9 @@ class Tests extends FreeSpec with PropertyChecks with Matchers
 			(let ((x 0) (y 1))
 				(let ((x y) (y x))
 					(list x y))) """ ) shouldBe List( 1, 0 )
+		
+//		interpret( """ (length '()) """ ) shouldBe 0
+//		interpret( """ (length '(a b c)) """ ) shouldBe 3
 	}
 	
 	"conditional" in
@@ -65,6 +80,21 @@ class Tests extends FreeSpec with PropertyChecks with Matchers
 		interpret( """ [test 3] """, env ) shouldBe "small"
 		interpret( """ [test 6] """, env ) shouldBe "medium"
 		interpret( """ [test 15] """, env ) shouldBe "large"
+	}
+	
+	"named let" in
+	{
+	val env = environment( """
+		(define divisors
+			(lambda (n)
+				(let f ((i 2))
+				(cond
+					((>= i n) '())
+					((integer? (/ n i))
+						(cons i (f (+ i 1))))
+					(else (f (+ i 1))))))) """ )
+	
+		interpret( """ [divisors 5] """, env ) shouldBe List()
 	}
 	
 	"pre-defined" in

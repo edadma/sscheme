@@ -13,14 +13,28 @@ package object sscheme
 	
 	private [sscheme] class Environment( outer: Environment ) extends HashMap[Symbol, Holder]
 	{
+		def add( key: Symbol, value: Any ) =
+		{
+			put( key, new Holder(value) )
+			this
+		}
+		
 		def add( kvs: (Symbol, Any)* ): Environment =
 		{
 			for ((k, v) <- kvs)
-				put( k, new Holder(v) )
+				add( k, v )
 				
 			this
 		}
-
+		
+		def add( ps: Primitives ): Environment =
+		{
+			for (p <- ps.list)
+				add( Symbol(p.primitive), p )
+				
+			this
+		}
+		
 		def find( variable: Symbol ): Option[Holder] =
 			get( variable ) match
 			{
@@ -38,6 +52,11 @@ package object sscheme
 		override def toString = String.valueOf( obj )
 	}
 	
+	abstract class Primitives
+	{
+		val list: Seq[Primitive]
+	}
+	
 	abstract class Form
 	{
 		def apply( args: List[Any] )( implicit env: Environment ): Any
@@ -48,7 +67,7 @@ package object sscheme
 		def apply( args: List[Any] )( implicit env: Environment ) = procedure( args map eval )
 	}
 	
-	class Primitive( primitive: String )( procedure: PartialFunction[List[Any], Any] ) extends Form
+	class Primitive( val primitive: String )( procedure: PartialFunction[List[Any], Any] ) extends Form
 	{
 		def apply( args: List[Any] )( implicit env: Environment ) =
 		{
@@ -96,38 +115,6 @@ package object sscheme
 					else
 						sys.error( "wrong number of arguments for 'quote': " + list )
 				),
-			'+ -> new Primitive( "+" )(
-				{
-					case Nil => 0
-					case list: List[Number] => list.reduce( Math('+, _, _).asInstanceOf[Number] )
-				} ),
-			'* -> new Primitive( "*" )(
-				{
-					case Nil => 1
-					case list: List[Number] => list.reduce( Math('*, _, _).asInstanceOf[Number] )
-				} ),
-			'- -> new Primitive( "-" )(
-				{
-					case List( n ) => Math( '-, n )
-					case list: List[Number] => list.reduce( Math('-, _, _).asInstanceOf[Number] )
-				} ),
-			'/ -> new Primitive( "/" )(
-				{
-					case List( n ) => Math( '/, 1, n )
-					case list: List[Number] => list.reduce( Math('/, _, _).asInstanceOf[Number] )
-				} ),
-			'quotient -> new Primitive( "quotient" )( {case List(first: Int, second: Int) => Math( Symbol("\\"), first, second )} ),
-			'sqrt -> new Primitive( "sqrt" )( {case List(n) => ca.hyperreal.lia.Math.sqrtFunction( n )} ),
-			Symbol("integer?") -> new Primitive( "integer?" )(
-				{
-					case List(_: Int | _: BigInt) => true
-					case List( _ ) => false
-				} ),
-			'< -> new Primitive( "<" )( {	case List(first: Int, second: Int) => first < second} ),
-			'> -> new Primitive( ">" )( {	case List(first: Int, second: Int) => first > second} ),
-			'<= -> new Primitive( "<=" )( {	case List(first: Int, second: Int) => first <= second} ),
-			'>= -> new Primitive( ">=" )( {	case List(first: Int, second: Int) => first >= second} ),
-			'= -> new Primitive( "=" )( {	case List(first: Number, second: Number) => Math( '==, first, second )} ),
 			Symbol("eq?") -> new Primitive( "eq?" )( {case List(first: AnyRef, second: AnyRef) => (first eq second)} ),
 			'car -> new Primitive( "car" )( {case List(list: List[Any]) => list.head} ),
 			'cdr -> new Primitive( "car" )( {case List(list: List[Any]) => list.tail} ),
@@ -272,7 +259,9 @@ package object sscheme
 						evaluate( args )
 					}
 				}
-		)
+		).
+		add( NumericPrimitives ).
+		add( IOPrimitives )
 	
 	interpret( """
 		(define null? (lambda (x) (eq? x '())))

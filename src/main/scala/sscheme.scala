@@ -32,6 +32,9 @@ package object sscheme
 	}
 	
 	private [sscheme] class Holder( var obj: Any )
+	{
+		override def toString = String.valueOf( obj )
+	}
 	
 	abstract class Form
 	{
@@ -40,16 +43,20 @@ package object sscheme
 	
 	class Procedure( procedure: List[Any] => Any ) extends Form
 	{
-		def apply( args: List[Any] )( implicit env: Environment ) = procedure( args map (eval) )
+		def apply( args: List[Any] )( implicit env: Environment ) = procedure( args map eval )
 	}
 	
-	class Primitive( primitive: String )( procedure: PartialFunction[List[Any], Any] ) extends Procedure( procedure )
+	class Primitive( primitive: String )( procedure: PartialFunction[List[Any], Any] ) extends Form
 	{
-		override def apply( args: List[Any] )( implicit env: Environment ) =
-			if (procedure.isDefinedAt( args ))
-				super.apply( args )
+		def apply( args: List[Any] )( implicit env: Environment ) =
+		{
+		val evaled = args map eval
+		
+			if (procedure.isDefinedAt( evaled ))
+				procedure( evaled )
 			else
-				sys.error( s"invalid arguments for '$primitive': $args" )
+				sys.error( s"invalid arguments for '$primitive': $evaled" )
+		}
 	}
 	
 	class Syntax( form: List[Any] => Any ) extends Form
@@ -99,6 +106,7 @@ package object sscheme
 				} ),
 			'- -> new Primitive( "-" )( {case List(first: Int, second: Int) => first - second} ),
 			'/ -> new Primitive( "/" )( {case List(first: Int, second: Int) => first / second} ),
+			'sqrt -> new Primitive( "sqrt" )( {case List(n) => ca.hyperreal.lia.Math.sqrtFunction( n )} ),
 			'< -> new Primitive( "<" )( {	case List(first: Int, second: Int) => first < second} ),
 			'> -> new Primitive( ">" )( {	case List(first: Int, second: Int) => first > second} ),
 			'<= -> new Primitive( "<=" )( {	case List(first: Int, second: Int) => first <= second} ),
@@ -196,16 +204,30 @@ package object sscheme
 				new Form
 				{
 					def apply( args: List[Any] )( implicit env: Environment ) = args forall beval
+				},
+			'let ->
+				new Form
+				{
+					def apply( args: List[Any] )( implicit env: Environment ) =
+						args match
+						{
+							case (bindings: List[Any]) :: body /*if properList( bindings )*/ =>
+								interpret( body )( new Environment(env) add ((bindings map ({case List(k: Symbol, v) => (k, eval(v))})): _*) )
+							case a => sys.error( "invalid arguments for 'let': " + a )							
+						}
 				}
 
 		)
 
+		
 	interpret( """
 		(define null? (lambda (x) (eq? x '())))
 		
 		(define boolean? (lambda (x) (or (eq? x #t) (eq? x #f))))
 		
 		(define not (lambda (x) (if x #f #t)))
+		
+		(define list (lambda x x))
 		""" )
 	
 	def interpret( program: List[Any] )( implicit env: Environment = GLOBAL ): Any =

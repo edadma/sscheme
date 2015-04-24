@@ -64,8 +64,8 @@ class Tests extends FreeSpec with PropertyChecks with Matchers
 				(let ((x y) (y x))
 					(list x y))) """ ) shouldBe List( 1, 0 )
 		
-//		interpret( """ (length '()) """ ) shouldBe 0
-//		interpret( """ (length '(a b c)) """ ) shouldBe 3
+		interpret( """ (length '()) """ ) shouldBe 0
+		interpret( """ (length '(a b c)) """ ) shouldBe 3
 	}
 	
 	"conditional" in

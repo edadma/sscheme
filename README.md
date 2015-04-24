@@ -9,7 +9,8 @@ Here is a simple example of how to use it in a Scala program (the code is from t
 
 	object Main extends App
 	{
-		val env = environment( """
+		val env = environment(
+			"""
 			(define divisors
 				(lambda (n)
 					(let f ((i 2))
@@ -17,7 +18,8 @@ Here is a simple example of how to use it in a Scala program (the code is from t
 						((>= i n) '())
 						((integer? (/ n i))
 							(cons i (f (+ i 1))))
-						(else (f (+ i 1))))))) """ )
+						(else (f (+ i 1)))))))
+			""" )
 		
 		println( interpret( """ [divisors 5] """, env ) )
 		println( interpret( """ [divisors 32] """, env ) )

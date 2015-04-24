@@ -3,16 +3,16 @@ package ca.hyperreal.sscheme
 
 object Main extends App
 {
-	val env = environment( """
-		(define divisors
-			(lambda (n)
-				(let f ((i 2))
-				(cond
-					((>= i n) '())
-					((integer? (/ n i))
-						(cons i (f (+ i 1))))
-					(else (f (+ i 1))))))) """ )
+	val env = environment(
+		"""
+		(define lengthx
+			(lambda (ls)
+				(let loop ((ls ls) (n 0))
+				(if (null? ls)
+					n
+					(loop (cdr ls) (+ n 1))))))
+		""" )
 	
-	println( interpret( """ [divisors 5] """, env ) )
-	println( interpret( """ [divisors 32] """, env ) )
+	println( interpret( """ [lengthx '[]] """, env ) )
+	println( interpret( """ [lengthx '[a b c]] """, env ) )
 }

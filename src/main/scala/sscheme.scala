@@ -7,6 +7,8 @@ import ca.hyperreal.lia.Math
 
 package object sscheme
 {
+	var trace = false
+	
 	type SchemePair = (Any, Any)
 	
 	private [sscheme] class Environment( outer: Environment ) extends HashMap[Symbol, Holder]
@@ -232,7 +234,7 @@ package object sscheme
 								val lambda = new Lambda( Left(bindings map ({case List(k: Symbol, _) => k})), body, newenv )
 		
 								newenv(name) = new Holder( lambda )
-								lambda( bindings map ({case List(_, v) => eval(v)}) )( newenv )
+								lambda( bindings map ({case List(_, v) => v}) )( newenv )
 							case a => sys.error( "invalid arguments for 'let': " + a )							
 						}
 				},
@@ -271,8 +273,6 @@ package object sscheme
 					}
 				}
 		)
-
-	def standardEnvironment = new Environment( GLOBAL )
 	
 	interpret( """
 		(define null? (lambda (x) (eq? x '())))
@@ -292,6 +292,8 @@ package object sscheme
 					n
 					(loop (cdr ls) (+ n 1))))))
 		""", GLOBAL )
+
+	def standardEnvironment = new Environment( GLOBAL )
 	
 	def interpret( program: List[Any] )( implicit env: Environment = standardEnvironment ): Any =
 		if (program != Nil)
@@ -319,6 +321,10 @@ package object sscheme
 	}
 	
 	def eval( expr: Any )( implicit env: Environment ): Any =
+	{
+		if (trace)
+			println( ">>>> " + expr )
+		
 		expr match
 		{
 			case _: Int | _: Double | _: String | false | true | Nil => expr
@@ -330,6 +336,7 @@ package object sscheme
 					case h => sys.error( "head of list not applicable: " + (h :: tail) )
 				}
 		}
+	}
 	
 	def beval( expr: Any )( implicit env: Environment ): Boolean =
 		eval( expr ) match

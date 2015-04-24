@@ -95,6 +95,7 @@ class Tests extends FreeSpec with PropertyChecks with Matchers
 					(else (f (+ i 1))))))) """ )
 	
 		interpret( """ [divisors 5] """, env ) shouldBe List()
+		interpret( """ [divisors 32] """, env ) shouldBe List( 2, 4, 8, 16 )
 	}
 	
 	"pre-defined" in

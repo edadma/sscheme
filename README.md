@@ -33,7 +33,7 @@ The following is a simple example of how to use it in a Scala program. The Schem
 					(lambda (pred? l)
 						(if (null? l) l (dosort pred? l (length l))))))
 			""" )
-		val l = List( 5, 7, 3, 9, 2, 1, 6 )
+		val l = SList( 5, 7, 3, 9, 2, 1, 6 )
 		
 		println( interpret( """ (sort < l) """, env add ('l -> l) ) )
 		println( interpret( """ (sort > l) """, env add ('l -> l) ) )
@@ -62,11 +62,11 @@ Use the following elements to use SScheme in your Maven project:
 	<dependency>
 		<groupId>ca.hyperreal</groupId>
 		<artifactId>sscheme</artifactId>
-		<version>0.1</version>
+		<version>0.2</version>
 	</dependency>
 
 Add the following to your `build.sbt` file to use SScheme in your SBT project:
 
 	resolvers += "Hyperreal Repository" at "https://dl.bintray.com/edadma/maven"
 
-	libraryDependencies += "ca.hyperreal" %% "sscheme" % "0.1"
+	libraryDependencies += "ca.hyperreal" %% "sscheme" % "0.2"

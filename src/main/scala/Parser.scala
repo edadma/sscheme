@@ -2,7 +2,7 @@ package ca.hyperreal.sscheme
 
 import java.io.{Reader, StringReader}
 
-import collection.mutable.ListBuffer
+import collection.mutable.ArrayBuffer
 
 import ca.hyperreal.rtcep._
 
@@ -14,7 +14,7 @@ object Parser
 		private val atomchar = ('0' to '9').toSet ++ ('a' to 'z') ++ ('A' to 'Z') ++ "?!.+-*/<=>:$%^&_~@"
 		
 		def token( s: Stream[Chr] ) =
-			if (s.head.ch != '@' && atomchar(s.head.ch))
+			if (s.head.ch != '@' && s.head.ch != '.' && atomchar(s.head.ch))
 				Some( consume(tok, s, c => atomchar(c)) )
 			else
 				None
@@ -49,7 +49,7 @@ object Parser
 			add( new SchemeAtomLexeme('atom) )
 			add( new SchemeSpecialLexeme("#f", 'false) )
 			add( new SchemeSpecialLexeme("#t", 'true) )
-			add( new SymbolLexeme( 'atom ) {add( "{", "}", "(", ")", "[", "]", "'", "#(" )} )
+			add( new SymbolLexeme( 'atom ) {add( ".", "{", "}", "(", ")", "[", "]", "'", "#(" )} )
 			ignore( WhitespaceLexeme )
 			add( EOFLexeme )
 		}
@@ -64,19 +64,19 @@ object Parser
 
 	def scan( s: String ): Stream[Token] = scan( new StringReader(s) )
 	
-	def parse( t: Stream[Token] ): List[List[Any]] =
+	def parse( t: Stream[Token] ) =
 	{
-	val buf = new ListBuffer[List[Any]]
+	val buf = new ArrayBuffer[Any]
 	
-		def build( s: Stream[Token] ): List[List[Any]] =
+		def build( s: Stream[Token] ): SList =
 			if (s.head.end)
 				if (buf.isEmpty)
 					s.head.pos.error( "unexpected end of input" )
 				else
-					buf.toList
+					SList.fromScalaSeq( buf )
 			else
 			{
-			val (expr, rest) = parseList( s )
+			val (expr, rest) = parseExpression( s )
 			
 				buf += expr
 				build( rest )
@@ -85,13 +85,19 @@ object Parser
 		build( t )
 	}
 	
-	def parse( r: Reader ): List[List[Any]] = parse( scan(r) )
+	def parse( r: Reader ): SList = parse( scan(r) )
 	
-	def parse( s: String ): List[List[Any]] = parse( scan(s) )
+	def parse( s: String ): SList = parse( scan(s) )
 	
 	def parseExpression( s: Stream[Token] ): (Any, Stream[Token]) =
-		if (open( s.head.kind ) || s.head.kind == '\'')
+		if (open( s.head.kind ))
 			parseList( s )
+		else if (s.head.kind == '\'')
+		{
+		val (expr, rest) = parseExpression( s.tail )
+		
+			(SList( 'quote, expr ), rest)
+		}
 		else
 			((s.head.kind match
 			{
@@ -103,33 +109,36 @@ object Parser
 				case 'string => s.head.s
 			}), s.tail)
 	
-	def parseList( t: Stream[Token] ): (List[Any], Stream[Token]) =
+	def parseList( t: Stream[Token] ) =
 		if (open( t.head.kind ))
 		{
-		val buf = new ListBuffer[Any]
-		
-			def build( s: Stream[Token], closing: Any ): (List[Any], Stream[Token]) =
+			def build( s: Stream[Token], closing: Any ): (SList, Stream[Token]) =
 				if (s.head.end)
 					s.head.pos.error( "unclosed list" )
 				else if (s.head.kind == closing)
-					(buf.toList, s.tail)
+					(SNil, s.tail)
 				else if (close( s.head.kind ))
 					s.head.pos.error( "wrong closing delimiter" )
 				else
 				{
-				val (expr, rest) = parseExpression( s )
+				val (head, rest) = parseExpression( s )
+				val (tail, rest1) =
+					if (rest.head.kind == '.')
+					{
+					val (second, after) = parseExpression( rest.tail )
+					
+						if (after.head.kind == closing)
+							(second, after.tail)
+						else
+							after.head.pos.error( s"expected $closing" )
+					}
+					else
+						build( rest, closing )
 				
-					buf += expr
-					build( rest, closing )
+					(SPair( head, tail ), rest1)
 				}
 				
 			build( t.tail, brackets(t.head.kind) )
-		}
-		else if (t.head.kind == '\'')
-		{
-		val (expr, rest) = parseExpression( t.tail )
-		
-			(List('quote, expr), rest)
 		}
 		else
 			t.head.pos.error( """expected "(" or "[" or "{" or "'"""" )

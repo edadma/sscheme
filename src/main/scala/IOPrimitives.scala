@@ -22,17 +22,17 @@ object IOPrimitives extends Primitives
 	}
 
 	val list = Seq(
-		new Primitive( "eof-object?" )( {case List( a: AnyRef ) => a eq eof} ),
-		new Primitive( "string-port" )( {case List( s: String ) => new Port( new StringReader(s) )} ),
+		new Primitive( "eof-object?" )( {case SList( a: AnyRef ) => a eq eof} ),
+		new Primitive( "string-port" )( {case SList( s: String ) => new Port( new StringReader(s) )} ),
 		new Primitive( "read-char" )(
 			{
-				case Nil => inputPort.read
-				case List( p: Port ) => p.read
+				case SNil => inputPort.read
+				case SList( p: Port ) => p.read
 			} ),
 		new Primitive( "write-char" )(
 			{
-				case List( c: Char ) => Console.out.print( c )
-				case List( c: Char, p: PrintStream ) => p.print( c )
+				case SList( c: Char ) => Console.out.print( c )
+				case SList( c: Char, p: PrintStream ) => p.print( c )
 			} )
 		)
 }

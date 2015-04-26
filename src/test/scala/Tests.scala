@@ -17,9 +17,9 @@ class Tests extends FreeSpec with PropertyChecks with Matchers
 	
 	"primitives" in
 	{
-		interpret( """ (cdr '(a)) """ ) shouldBe Nil
-		interpret( """ (cdr '(a b c)) """ ) shouldBe List( 'b, 'c )
-		interpret( """ (cdr (cons 3 '(4))) """ ) shouldBe List(4)
+		interpret( """ (cdr '(a)) """ ) shouldBe SNil
+		interpret( """ (cdr '(a b c)) """ ) shouldBe SList( 'b, 'c )
+		interpret( """ (cdr (cons 3 '(4))) """ ) shouldBe SList(4)
 		
 		interpret( """ [- 1] """ ) shouldBe -1
 		interpret( """ [- 10 1 1] """ ) shouldBe 8
@@ -43,7 +43,7 @@ class Tests extends FreeSpec with PropertyChecks with Matchers
 		interpret( """ [if #t "yes" "no"] """ ) shouldBe "yes"
 		
 		interpret( """ [[lambda [x y] [+ x y]] 3 4] """ ) shouldBe 7
-		interpret( """ [[lambda x x] 3] """ ) shouldBe List( 3 )
+		interpret( """ [[lambda x x] 3] """ ) shouldBe SList( 3 )
 		
 		interpret( """ [define f [lambda [x y] [+ [* x x] [* y y]]]] [define a 5] [f a 4] """ ) shouldBe 41
 		interpret( """ [define x 5] [set! x 6] [+ x 1] """ ) shouldBe 7
@@ -58,11 +58,11 @@ class Tests extends FreeSpec with PropertyChecks with Matchers
 		interpret( """ (not #t) """ ) shouldBe false
  		
 		interpret( """ (let ((x (* 3 3)) (y (* 4 4))) (sqrt (+ x y))) """ ) shouldBe 5
-		interpret( """ (let ((x 'a) (y '(b c))) (cons x y)) """ ) shouldBe List( 'a, 'b, 'c )
+		interpret( """ (let ((x 'a) (y '(b c))) (cons x y)) """ ) shouldBe SList( 'a, 'b, 'c )
 		interpret( """
 			(let ((x 0) (y 1))
 				(let ((x y) (y x))
-					(list x y))) """ ) shouldBe List( 1, 0 )
+					(list x y))) """ ) shouldBe SList( 1, 0 )
 		
 		interpret( """ (length '()) """ ) shouldBe 0
 		interpret( """ (length '(a b c)) """ ) shouldBe 3
@@ -94,8 +94,8 @@ class Tests extends FreeSpec with PropertyChecks with Matchers
 						(cons i (f (+ i 1))))
 					(else (f (+ i 1))))))) """ )
 	
-		interpret( """ [divisors 5] """, env ) shouldBe List()
-		interpret( """ [divisors 32] """, env ) shouldBe List( 2, 4, 8, 16 )
+		interpret( """ [divisors 5] """, env ) shouldBe SList()
+		interpret( """ [divisors 32] """, env ) shouldBe SList( 2, 4, 8, 16 )
 	}
 	
 	"pre-defined" in
@@ -108,5 +108,35 @@ class Tests extends FreeSpec with PropertyChecks with Matchers
 		interpret( """ (boolean? #f) """ ) shouldBe true
 		interpret( """ (boolean? 't) """ ) shouldBe false
 		interpret( """ (boolean? '()) """ ) shouldBe false
+	}
+	
+	"sort" in
+	{
+	val env = environment( """
+		(define sort #f)
+		(let ()
+			(define dosort
+				(lambda (pred? ls n)
+					(if (= n 1)
+						(list (car ls))
+						(let ((i (quotient n 2)))
+							(merge pred?
+								(dosort pred? ls i)
+								(dosort pred? (list-tail ls i) (- n i)))))))
+			(define merge
+				(lambda (pred? l1 l2)
+					(cond
+						((null? l1) l2)
+						((null? l2) l1)
+						((pred? (car l2) (car l1))
+						(cons (car l2) (merge pred? l1 (cdr l2))))
+						(else (cons (car l1) (merge pred? (cdr l1) l2))))))
+			(set! sort
+				(lambda (pred? l)
+					(if (null? l) l (dosort pred? l (length l))))))
+		""" )
+	
+		interpret( """ (sort < l) """, env add ('l -> SList(5, 7, 3, 9, 2, 1, 6)) ) shouldBe SList(1, 2, 3, 5, 6, 7, 9)
+		interpret( """ (sort > l) """, env add ('l -> SList(5, 7, 3, 9, 2, 1, 6)) ) shouldBe SList(9, 7, 6, 5, 3, 2, 1)
 	}
 }

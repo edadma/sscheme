@@ -1,12 +1,26 @@
 package ca.hyperreal.sscheme
 
-import java.io.PrintWriter
+import java.io.{FileReader, PrintWriter}
 
 import jline.console.ConsoleReader
 
 
 object Main extends App
 {
+	if (!args.isEmpty)
+	{
+	val script = new FileReader( args(0) )
+	
+		interpret( Parser.parse(script) )( standardEnvironment add ('args -> SList.fromScalaSeq(args.toList.tail)) ) match
+		{
+			case () =>
+			case result => println( result )
+		}
+		
+		script.close
+		sys.exit
+	}
+	
 	System.getProperties.setProperty( "jline.shutdownhook", "true" )
 
 	val reader = new ConsoleReader

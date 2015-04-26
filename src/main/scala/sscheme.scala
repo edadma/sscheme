@@ -330,7 +330,7 @@ package object sscheme
 				eval( head ) match
 				{
 					case f: Form => f( tail )
-					case h => sys.error( "head of list not applicable: " + (h, tail) )
+					case h => sys.error( "head of list not applicable: " + SPair(h, tail) )
 				}
 			case _ => sys.error( "improper list can't be evaluated: " + expr )
 		}

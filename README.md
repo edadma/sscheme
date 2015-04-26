@@ -62,11 +62,40 @@ Use the following elements to use SScheme in your Maven project:
 	<dependency>
 		<groupId>ca.hyperreal</groupId>
 		<artifactId>sscheme</artifactId>
-		<version>0.2</version>
+		<version>0.1</version>
 	</dependency>
 
 Add the following to your `build.sbt` file to use SScheme in your SBT project:
 
 	resolvers += "Hyperreal Repository" at "https://dl.bintray.com/edadma/maven"
 
-	libraryDependencies += "ca.hyperreal" %% "sscheme" % "0.2"
+	libraryDependencies += "ca.hyperreal" %% "sscheme" % "0.1"
+	
+
+## Building
+
+### Requirements
+
+- SBT 13.2+
+- Java 6+
+
+Clone and build:
+
+	git clone git://github.com/edadma/sscheme.git
+	cd sscheme
+	sbt assembly
+
+This will build an executable requiring only that Java be installed.  You can now also type
+
+	sbt run
+
+to start the REPL, or
+
+	sbt "run <SScheme script file>"
+
+to execute a script.  Note that the double quotes are required.
+
+
+## Executable
+
+The latest executable can be downloaded from <https://dl.bintray.com/edadma/generic/sscheme-0.1.jar>.

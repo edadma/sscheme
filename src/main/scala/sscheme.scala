@@ -8,8 +8,15 @@ import ca.hyperreal.lia.Math
 package object sscheme
 {
 	var trace = false
+	val VERSION =
+		{
+			val p = getClass.getPackage
+			val name = p.getImplementationTitle
+
+			p.getImplementationVersion
+		}
 	
-	private [sscheme] class Environment( outer: Environment ) extends HashMap[Symbol, Holder]
+	class Environment( outer: Environment ) extends HashMap[Symbol, Holder]
 	{
 		def add( key: Symbol, value: Any ) =
 		{
@@ -45,7 +52,7 @@ package object sscheme
 			}
 	}
 	
-	private [sscheme] class Holder( var obj: Any )
+	class Holder( var obj: Any )
 	{
 		override def toString = String.valueOf( obj )
 	}
@@ -105,7 +112,7 @@ package object sscheme
 			}
 		)
 	
-	private val GLOBAL =
+	val GLOBAL =
 		new Environment( null ).add(
 			'quote -> new Syntax(
 				_ match
@@ -113,11 +120,6 @@ package object sscheme
 					case SList( arg ) => arg
 					case args => sys.error( "invalid arguments for 'quote': " + args )
 				} ),
-			Symbol("eq?") -> new Primitive( "eq?" )( {case SList(first: AnyRef, second: AnyRef) => (first eq second)} ),
-			'car -> new Primitive( "car" )( {case SList(list: SList) => list.head} ),
-			'cdr -> new Primitive( "cdr" )( {case SList(list: SList) => list.tail} ),
-			'cons -> new Primitive( "cons" )( {case SList(first, second) => SPair( first, second )} ),
-			'display -> new Primitive( "display" )( {case SList(obj) => println(obj)} ),
 			'define ->
 				new Form
 				{
@@ -126,7 +128,7 @@ package object sscheme
 						{
 							case SList( sym: Symbol, exp ) =>
 								env += (sym -> new Holder(eval(exp)))
-								SNil
+								()
 						}
 				},
 			Symbol("set!") ->
@@ -142,7 +144,7 @@ package object sscheme
 									case Some( h: Holder ) => h.obj = eval( exp )
 								}
 								
-								SNil
+								()
 						}
 				},
 			'apply ->
@@ -228,7 +230,7 @@ package object sscheme
 						def evaluate( clauses: SList ): Any =
 							clauses.head match
 							{
-								case SNil => SNil
+								case SNil => ()
 								case SList( test ) =>
 									eval( test ) match
 									{
@@ -255,6 +257,7 @@ package object sscheme
 					}
 				}
 		).
+		add( BasicPrimitives ).
 		add( NumericPrimitives ).
 		add( IOPrimitives ).
 		add( TypePrimitives )
@@ -289,7 +292,7 @@ package object sscheme
 	def interpret( program: SList )( implicit env: Environment = standardEnvironment ): Any =
 		program match
 		{
-			case SNil => SNil
+			case SNil => ()
 			case SPair( head, tail: SList ) => 
 				val result = eval( head )
 				

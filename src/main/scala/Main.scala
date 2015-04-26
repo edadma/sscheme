@@ -1,34 +1,67 @@
 package ca.hyperreal.sscheme
 
+import java.io.PrintWriter
+
+import jline.console.ConsoleReader
+
 
 object Main extends App
 {
-		val env = environment(
-			"""
-			(define sort #f)
-			(let ()
-				(define dosort
-					(lambda (pred? ls n)
-						(if (= n 1)
-							(list (car ls))
-							(let ((i (quotient n 2)))
-								(merge pred?
-									(dosort pred? ls i)
-									(dosort pred? (list-tail ls i) (- n i)))))))
-				(define merge
-					(lambda (pred? l1 l2)
-						(cond
-							((null? l1) l2)
-							((null? l2) l1)
-							((pred? (car l2) (car l1))
-							(cons (car l2) (merge pred? l1 (cdr l2))))
-							(else (cons (car l1) (merge pred? (cdr l1) l2))))))
-				(set! sort
-					(lambda (pred? l)
-						(if (null? l) l (dosort pred? l (length l))))))
-			""" )
-		val l = SList( 5, 7, 3, 9, 2, 1, 6 )
-		
-		println( interpret( """ (sort < l) """, env add ('l -> l) ) )
-		println( interpret( """ (sort > l) """, env add ('l -> l) ) )
+	System.getProperties.setProperty( "jline.shutdownhook", "true" )
+
+	val reader = new ConsoleReader
+	val out = new PrintWriter( reader.getTerminal.wrapOutIfNeeded(System.out), true )
+	var line: String = null
+	var count = 1
+	implicit val env = standardEnvironment
+
+	reader.setBellEnabled( false )
+	reader.setPrompt( "SScheme> " )
+
+	out.println( "Welcome to SScheme version " + VERSION )
+	out.println( "Type in expressions to have them evaluated." )
+	out.println( "Type :help for more information." )
+	out.println
+	
+	while ({line = reader.readLine; line != null})
+	{
+		line.trim match
+		{
+			case ":help" =>
+				out.println( ":help                      print this summary" )
+				out.println( ":quit                      exit the REPL" )
+				out.println
+			case ":quit" =>
+				sys.exit
+			case "" =>
+				out.println
+			case _ =>
+				try
+				{
+					interpret( line, env ) match
+					{
+						case () =>
+						case res =>
+						val name = "res" + count
+
+							if (res == null)
+								out.println( name + " = null" )
+							else
+								out.println( name + ": " + res.getClass.getName + " = " + res )
+								
+							env add (Symbol(name) -> res)
+							count += 1
+					}
+					
+					out.println
+				}
+				catch
+				{
+					case e: Exception =>
+//					e.printStackTrace( out )
+						out.println( e )
+						out.println
+				}
+		}
+	}
 }

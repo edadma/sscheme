@@ -3,7 +3,7 @@ import AssemblyKeys._
 
 name := "sscheme"
 
-version := "0.2"
+version := "0.1"
 
 scalaVersion := "2.11.6"
 
@@ -50,15 +50,15 @@ libraryDependencies ++= Seq(
 //	"org.antlr" % "stringtemplate" % "4.0.2"
 	)
 	
-//mainClass in (Compile, packageBin) := Some( "ca.hyperreal.myproject.Main" )
+//mainClass in (Compile, packageBin) := Some( "ca.hyperreal.sscheme.Main" )
 
-//mainClass in (Compile, run) := Some( "ca.hyperreal.myproject.Main" )
+mainClass in (Compile, run) := Some( "ca.hyperreal.sscheme.Main" )
 
 //offline := true
 
 assemblySettings
 
-mainClass in assembly := Some( "ca.hyperreal.myproject.Main" )
+mainClass in assembly := Some( "ca.hyperreal.sscheme.Main" )
 
 jarName in assembly := name.value + "-" + version.value + ".jar"
 

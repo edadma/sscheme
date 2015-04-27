@@ -141,10 +141,10 @@ package object sscheme
 								env.find( sym ) match
 								{
 									case None => sys.error( s"variable ${sym.name} was not previously bound: (set! ${sym.name} $exp)" )
-									case Some( h: Holder ) => h.obj = eval( exp )
+									case Some( h: Holder ) =>
+										h.obj = eval( exp )
+										()
 								}
-								
-								()
 						}
 				},
 			'apply ->
@@ -153,10 +153,15 @@ package object sscheme
 					def apply( args: SList )( implicit env: Environment ) =
 						args map (eval) match
 						{
-							case SList( function: Form, list: SList ) => function( list )
-// 							case SPair( (function: Form), args: SList ) => 
-// 									case a => sys.error( "expected list as last argument of 'apply': " + a )
-// 								}
+							case SList( function: Form, list: SList ) if list.isProperList => function( list )
+							case SPair( (function: Form), args: SList ) if args.isProperList => 
+								val argsList = args.toProperList
+								
+								argsList.last match
+								{
+									case p: SList if p.isProperList => function( SList.fromScalaSeq(argsList.init ++ p.toProperList) )
+									case a => sys.error( "expected proper list as last argument of 'apply': " + a )
+								}
 							case _ => sys.error( "invalid arguments for 'apply': " + args )
 						}
 				},
@@ -257,7 +262,8 @@ package object sscheme
 					}
 				}
 		).
-		add( BasicPrimitives ).
+		add( ListPrimitives ).
+		add( MiscPrimitives ).
 		add( NumericPrimitives ).
 		add( IOPrimitives ).
 		add( TypePrimitives )
@@ -285,6 +291,17 @@ package object sscheme
 				(if (= n 0)
 					ls
 					(list-tail (cdr ls) (- n 1)))))
+		
+		(define list?
+			(lambda (x)
+				(let race ((h x) (t x))
+				(if (pair? h)
+					(let ((h (cdr h)))
+						(if (pair? h)
+							(and (not (eq? h t))
+								(race (cdr h) (cdr t)))
+							(null? h)))
+					(null? h)))))
 		""", GLOBAL )
 
 	def standardEnvironment = new Environment( GLOBAL )

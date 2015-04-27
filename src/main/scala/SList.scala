@@ -10,7 +10,9 @@ abstract class SList
 
 		def tail: Any
 		
-		lazy val tailSList = tail.asInstanceOf[SList]
+		def headSList = head.asInstanceOf[SList]
+		
+		def tailSList = tail.asInstanceOf[SList]
 		
 		def isEmpty: Boolean
 		
@@ -62,6 +64,15 @@ abstract class SList
 						false
 				case SPair( left, right ) => sys.error( s"SList.forall: improper list: ($left $right)" )
 			}
+		
+		def last: Any =
+			this match
+			{
+				case SNil => sys.error( s"SList.last: empty list has no last element" )
+				case SPair( elem, SNil ) => elem
+				case SPair( _, tail: SPair ) => tail.last
+				case _ => sys.error( s"SList.last: improper list" )
+			}
 			
 		def isProperList: Boolean =
 			this match
@@ -90,7 +101,7 @@ case object SNil extends SList
 		
 		override def toString = "()"
 	}
-case class SPair( val head: Any, val tail: Any ) extends SList
+case class SPair( var head: Any, var tail: Any ) extends SList
 	{
 		val isEmpty = false
 		

@@ -66,6 +66,35 @@ class Tests extends FreeSpec with PropertyChecks with Matchers
 		
 		interpret( """ (length '()) """ ) shouldBe 0
 		interpret( """ (length '(a b c)) """ ) shouldBe 3
+		
+		interpret( """
+			(let ((x '(a b c)))
+				(set-car! x 1)
+				x) """ ) shouldBe SList( 1, 'b, 'c )
+		
+		interpret( """
+			(let ((x '(a b c)))
+				(set-cdr! x 1)
+				x) """ ) shouldBe SPair( 'a, 1 )
+		
+		interpret( """ (list? '()) """ ) shouldBe true
+		interpret( """ (list? '(a b c)) """ ) shouldBe true
+		interpret( """ (list? 'a) """ ) shouldBe false
+		interpret( """ (list? '(3 . 4)) """ ) shouldBe false
+		interpret( """ (list? 3) """ ) shouldBe false
+		interpret( """
+			(let ((x (list 'a 'b 'c)))
+				(set-cdr! (cddr x) x)
+				(list? x)) """ ) shouldBe false
+	}
+	
+	"begin" in
+	{
+		interpret( """
+			(define x 3)
+			(begin
+				(set! x (+ x 1))
+				(+ x x)) """ ) shouldBe 8
 	}
 	
 	"conditional" in
@@ -88,11 +117,11 @@ class Tests extends FreeSpec with PropertyChecks with Matchers
 		(define divisors
 			(lambda (n)
 				(let f ((i 2))
-				(cond
-					((>= i n) '())
-					((integer? (/ n i))
-						(cons i (f (+ i 1))))
-					(else (f (+ i 1))))))) """ )
+					(cond
+						((>= i n) '())
+						((integer? (/ n i))
+							(cons i (f (+ i 1))))
+						(else (f (+ i 1))))))) """ )
 	
 		interpret( """ [divisors 5] """, env ) shouldBe SList()
 		interpret( """ [divisors 32] """, env ) shouldBe SList( 2, 4, 8, 16 )
@@ -108,35 +137,5 @@ class Tests extends FreeSpec with PropertyChecks with Matchers
 		interpret( """ (boolean? #f) """ ) shouldBe true
 		interpret( """ (boolean? 't) """ ) shouldBe false
 		interpret( """ (boolean? '()) """ ) shouldBe false
-	}
-	
-	"sort" in
-	{
-	val env = environment( """
-		(define sort #f)
-		(let ()
-			(define dosort
-				(lambda (pred? ls n)
-					(if (= n 1)
-						(list (car ls))
-						(let ((i (quotient n 2)))
-							(merge pred?
-								(dosort pred? ls i)
-								(dosort pred? (list-tail ls i) (- n i)))))))
-			(define merge
-				(lambda (pred? l1 l2)
-					(cond
-						((null? l1) l2)
-						((null? l2) l1)
-						((pred? (car l2) (car l1))
-						(cons (car l2) (merge pred? l1 (cdr l2))))
-						(else (cons (car l1) (merge pred? (cdr l1) l2))))))
-			(set! sort
-				(lambda (pred? l)
-					(if (null? l) l (dosort pred? l (length l))))))
-		""" )
-	
-		interpret( """ (sort < l) """, env add ('l -> SList(5, 7, 3, 9, 2, 1, 6)) ) shouldBe SList(1, 2, 3, 5, 6, 7, 9)
-		interpret( """ (sort > l) """, env add ('l -> SList(5, 7, 3, 9, 2, 1, 6)) ) shouldBe SList(9, 7, 6, 5, 3, 2, 1)
 	}
 }

@@ -42,10 +42,9 @@ class Tests extends FreeSpec with PropertyChecks with Matchers
 		interpret( """ [if #f "yes" "no"] """ ) shouldBe "no"
 		interpret( """ [if #t "yes" "no"] """ ) shouldBe "yes"
 		
-		interpret( """ [[lambda [x y] [+ x y]] 3 4] """ ) shouldBe 7
-		interpret( """ [[lambda x x] 3] """ ) shouldBe SList( 3 )
-		
 		interpret( """ [define f [lambda [x y] [+ [* x x] [* y y]]]] [define a 5] [f a 4] """ ) shouldBe 41
+		interpret( """ [define [f x y] [+ [* x x] [* y y]]] [define a 5] [f a 4] """ ) shouldBe 41
+		interpret( """ [define x 5] [+ x 1] """ ) shouldBe 6
 		interpret( """ [define x 5] [set! x 6] [+ x 1] """ ) shouldBe 7
  		
 		interpret( """ (or (< 3 2) (> 3 4)) """ ) shouldBe false
@@ -86,6 +85,18 @@ class Tests extends FreeSpec with PropertyChecks with Matchers
 			(let ((x (list 'a 'b 'c)))
 				(set-cdr! (cddr x) x)
 				(list? x)) """ ) shouldBe false
+	}
+	
+	"lambda" in
+	{
+		interpret( """ ((lambda (x) (+ x 3)) 7) """ ) shouldBe 10
+		interpret( """ ((lambda (x y) (* x (+ x y))) 7 13) """ ) shouldBe 140
+		interpret( """ ((lambda (f x) (f x x)) + 11) """ ) shouldBe 22
+		interpret( """ ((lambda () (+ 3 4))) """ ) shouldBe 7
+		interpret( """ ((lambda (x . y) (list x y)) 28 37) """ ) shouldBe SList(28, SList(37))
+		interpret( """ ((lambda (x . y) (list x y)) 28 37 47 28) """ ) shouldBe SList(28, SList(37, 47, 28))
+		interpret( """ ((lambda (x y . z) (list x y z)) 1 2 3 4) """ ) shouldBe SList(1, 2, SList(3, 4))
+		interpret( """ ((lambda x x) 7 13) """ ) shouldBe SList(7, 13)
 	}
 	
 	"begin" in

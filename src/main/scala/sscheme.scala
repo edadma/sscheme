@@ -90,25 +90,51 @@ package object sscheme
 		def apply( args: SList )( implicit env: Environment ) = form( args )
 	}
 	
-	class Lambda( formals: Either[List[Symbol], Symbol], body: SList, env: Environment ) extends
+	class Lambda( formals: Either[Symbol, SList], body: SList, env: Environment ) extends
 		Procedure(
 			{args =>
+				implicit val newenv = new Environment( env )
+				
+// 				formals match
+// 				{
+// 					case None =>
+// 					case Some( f ) =>
+// 						val argsList = args.toProperList
+// 						val al = argsList.length
+// 						val pl = f.length
+// 					
+// 						if (al < pl)
+// 							sys.error( s"too few arguments for lambda: $args" )
+// 						else if (al > pl && last != None)
+// 							sys.error( s"too many arguments for lambda: $args" )
+// 						
+// 						newenv add (f.zip(argsList): _*) )
+// 					case Right( f ) =>
+// 						interpret( body )( new Environment(env) add (f -> args) )
+// 				}
+				
 				formals match
 				{
-					case Left( f ) =>
-						val argsList = args.toProperList
-						val al = argsList.length
-						val pl = f.length
-					
-						if (al < pl)
-							sys.error( s"too few arguments for lambda: $args" )
-						else if (al > pl)
-							sys.error( s"too many arguments for lambda: $args" )
-						else
-							interpret( body )( new Environment(env) add (f.zip(argsList): _*) )
-					case Right( f ) =>
-						interpret( body )( new Environment(env) add (f -> args) )
+					case Left( f ) => newenv add (f, args)
+					case Right( fs ) =>
+						def bind( fs: SList, as: SList )
+						{
+							(fs, as) match
+							{
+								case (SNil, SNil) =>
+								case (SPair( f: Symbol, ftail: SList ), SPair( o, atail: SList )) =>
+									newenv.add( f, o )
+									bind( ftail, atail )
+								case (SPair( f: Symbol, frem: Symbol ), SPair( o, arem: SList )) if arem.isProperList =>
+									newenv.add( f, o )
+									newenv.add( frem, arem )
+							}
+						}
+						
+						bind( fs, args )
 				}
+				
+				interpret( body )
 			}
 		)
 	
@@ -120,17 +146,6 @@ package object sscheme
 					case SList( arg ) => arg
 					case args => sys.error( "invalid arguments for 'quote': " + args )
 				} ),
-			'define ->
-				new Form
-				{
-					def apply( args: SList )( implicit env: Environment ) =
-						args match
-						{
-							case SList( sym: Symbol, exp ) =>
-								env += (sym -> new Holder(eval(exp)))
-								()
-						}
-				},
 			Symbol("set!") ->
 				new Form
 				{
@@ -165,6 +180,23 @@ package object sscheme
 							case _ => sys.error( "invalid arguments for 'apply': " + args )
 						}
 				},
+			'define ->
+				new Form
+				{
+					def apply( args: SList )( implicit env: Environment ) =
+						args match
+						{
+							case SList( sym: Symbol, exp ) =>
+								env add (sym, eval(exp))
+							case SPair( SPair(sym: Symbol, vars: Symbol), body: SList ) => 
+								env add (sym, new Lambda( Left(vars), body, env ))
+							case SPair( SPair(sym: Symbol, vars: SList), body: SList ) => 
+								env add (sym, new Lambda( Right(vars), body, env ))
+							case _ => sys.error( "invalid arguments for 'define': " + args )
+						}
+						
+						()
+				},
 			'lambda ->
 				new Form
 				{
@@ -172,9 +204,10 @@ package object sscheme
 					{
 						args match
 						{
-							case SPair( formals: SList, body: SList ) if formals.isProperList && body.isProperList =>
-								new Lambda( Left(formals.toProperList.asInstanceOf[List[Symbol]]), body, env )
-							case SPair( (formal: Symbol), body: SList ) if body.isProperList => new Lambda( Right(formal), body, env )
+							case SPair( formal: Symbol, body: SList ) if body.isProperList =>
+								new Lambda( Left(formal), body, env )
+							case SPair( formals: SList, body: SList ) =>
+								new Lambda( Right(formals), body, env )
 							case _ => sys.error( "invalid arguments for 'lambda': " + args )
 						}
 					}
@@ -219,8 +252,7 @@ package object sscheme
 									((bindings map ({case SList(k: Symbol, v) => (k, eval(v))})).toProperList.asInstanceOf[List[(Symbol, Any)]]: _*) )
 							case SPair( (name: Symbol), SPair((bindings: SList), body: SList) ) if bindings.isProperList =>
 								val newenv = new Environment( env )
-								val lambda = new Lambda( Left(bindings.map( {case SList(k: Symbol, _) => k} ).
-									toProperList.asInstanceOf[List[Symbol]]), body, newenv )
+								val lambda = new Lambda( Right(bindings.map( {case SList(k: Symbol, _) => k} )), body, newenv )
 		
 								newenv(name) = new Holder( lambda )
 								lambda( bindings map ({case SList(_, v) => v}) )( newenv )
